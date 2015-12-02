@@ -53,12 +53,12 @@
 <Key mask="A" key="F1">root:9</Key>
 <Key mask="A" key="F2">window</Key>
 
-<Key keycode="160">exec:amixer sset Master toggle</Key>
-<Key keycode="176">exec:amixer sset Master 1+,1+</Key>
-<Key keycode="174">exec:amixer sset Master 1-,1-</Key>
-<Key keycode="178">exec:defaultbrowser</Key>
+<Key keycode="121">exec:amixer sset Master toggle</Key>
+<Key keycode="122">exec:amixer sset Master 1+,1+</Key>
+<Key keycode="123">exec:amixer sset Master 1-,1-</Key>
+<Key keycode="180">exec:defaultbrowser</Key>
 <Key keycode="236">exec:defaultbrowser</Key>
-<Key keycode="111">exec:defaultscreenshot</Key>
+<Key keycode="107">exec:defaultscreenshot</Key>
 
 <ButtonClose>/root/.jwm/window_buttons/close.png</ButtonClose>
 <ButtonMax>/root/.jwm/window_buttons/max.png</ButtonMax>
