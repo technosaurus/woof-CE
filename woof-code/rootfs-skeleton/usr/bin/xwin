@@ -1,5 +1,5 @@
 #!/bin/sh
-# complete rewrite 20151202
+# major alterations 20151202
 
 export TEXTDOMAIN=xwin
 export OUTPUT_CHARSET=UTF-8
@@ -41,106 +41,110 @@ if [ "$1" ];then
 fi
 
 HAVEX="`readlink /usr/bin/X`"
-if [ "$HAVEX" = "Xvesa" ];then #0.9.9
 
-	if [ ! -f /tmp/videomode -a ! -f /etc/videomode ];then #v2.21
-		ddcprobe >/tmp/ddcprobe.txt
-	case "`cat /tmp/ddcprobe.txt`" in *edidfail*)
-		sleep 1
-		ddcprobe >/tmp/ddcprobe.txt
-		;;
-	esac
-
-		if [ -f /etc/xorgoverrides ] && grep -q -f /etc/xorgoverrides /tmp/ddcprobe.txt;then
-			rm -f /root/.XLOADED 2> /dev/null #not necessary, precaution.
-			#1st dialog offers to use Xvesa...
-			/usr/sbin/xorgwizard
-			HAVEX="`readlink /usr/bin/X`"
-			[ "$HAVEX" != "Xorg" ] && exit   #go to command line if not Xorg
+# keep this for legacy xorgwizard
+if [ "$DISTRO_XORG_AUTO" = "yes" ];then # big if
+	if [ "$HAVEX" = "Xvesa" ];then #0.9.9
+	
+		if [ ! -f /tmp/videomode -a ! -f /etc/videomode ];then #v2.21
+			ddcprobe >/tmp/ddcprobe.txt
+		case "`cat /tmp/ddcprobe.txt`" in *edidfail*)
+			sleep 1
+			ddcprobe >/tmp/ddcprobe.txt
+			;;
+		esac
+	
+			if [ -f /etc/xorgoverrides ] && grep -q -f /etc/xorgoverrides /tmp/ddcprobe.txt;then
+				rm -f /root/.XLOADED 2> /dev/null #not necessary, precaution.
+				#1st dialog offers to use Xvesa...
+				/usr/sbin/xorgwizard
+				HAVEX="`readlink /usr/bin/X`"
+				[ "$HAVEX" != "Xorg" ] && exit   #go to command line if not Xorg
+			fi
 		fi
 	fi
 fi
 #Repeat earlier tests in case Xserver now Xorg and to retain indentation levels.
-if [ "$HAVEX" = "Xvesa" ];then #0.9.9
-	BASEMODE=""
-	if [ ! -f /tmp/videomode -a ! -f /etc/videomode ];then
-
-		[ "`dmidecode -s bios-version | grep '^CM91510'`" != "" ] && echo 'timing: 800x480@60' >> /tmp/ddcprobe.txt
-		DMIDECODE="`dmidecode`"
-		#recognise EeePC Asus laptop...
-		[ "`echo "$DMIDECODE" | grep 'Product Name: 701'`" != "" ] && [ "`echo "$DMIDECODE" | grep 'Serial Number: EeePC'`" != "" ] && echo 'timing: 800x480@60' >> /tmp/ddcprobe.txt
-
-		echo -e '\n'$(gettext 'If initialization freezes here, press ctrl-c and type "xorgwizard",\nselect "Xorg", choose monitor type and choose video mode.')''   #v3.99
-		grep '^oem:' /tmp/ddcprobe.txt > /tmp/ddcprobeoem.txt   #v3.99 current adapter signature
-
-		#get too many weird resolutions, maybe better just only allow these...
-		#want widescreen/non-vesa resolutions only...
-		VESAMODES="`Xvesa -listmodes 2>&1 | grep '^0x' | tr ':' ' ' | tr -s ' ' | cut -f 1,2 -d ' '`"
-		rm /tmp/ddcprobeoem.txt  #v3.99 didn't hang in Xvesa, so delete signature
-		#100608 jemimah: added 1366x768...
-		MONCHOICES="`grep -F 'timing:' /tmp/ddcprobe.txt | grep -E -v 'Apple|8514A|Mac II|\(XGA2\)' | grep -E ' 800x480@| 1024x600@| 1280x768@| 1280x800@| 1280x1024@| 1360x768@| 1366x768@| 1400x1050@| 1440x900@| 1600x1200@| 1680x1050@| 1920x1080@| 1920x1200@' | cut -f 2 -d ' ' | sort -u`"
-
-		if [ "$MONCHOICES" != "" ];then
-		MONCUTXY="`echo "$MONCHOICES" | cut -f 1 -d '@' | tr '\n' ' '`"
-
-		#v2.21 code to handle widescreen with intel video chips...
-			if [ ! -f /etc/resolutionfix ];then
-				if grep -F 'oem:' /tmp/ddcprobe.txt | grep -F -q 'Intel' ;then
-					MISSINGXY=""
-					for ONECUTXY in $MONCUTXY #ex: each field 1024x768
-					do
-						OPATTERN=" ${ONECUTXY}x"
-						[ "`echo "$VESAMODES" | grep "$ONECUTXY"`" = "" ] && MISSINGXY="$ONECUTXY"
-					done
-					if [ "$MISSINGXY" != "" ];then
-						MYXRES="`echo -n "$MISSINGXY" | cut -f 1 -d 'x'`" 
-						MYYRES="`echo -n "$MISSINGXY" | cut -f 2 -d 'x'`" 
-						915resolution 38 $MYXRES $MYYRES
-						#...replaces mode 38 (1024x768).
-						#create something for /etc/profile to execute at bootup...
-						echo "915resolution 38 $MYXRES $MYYRES" > /etc/resolutionfix
-						VESAMODES="`Xvesa -listmodes 2>&1 | grep '^0x' | tr ':' ' ' | tr -s ' ' | cut -f 1,2 -d ' '`"
-						PPATTERN=" ${MYXRES}x${MYYRES}x"
-						#BASEMOD is res that we are going to start X with...
-						BASEMODE="`echo "$VESAMODES" | grep "$PPATTERN" | grep -E 'x16$|x24$|x32$' | head -n 1`"
+	if [ "$HAVEX" = "Xvesa" ];then #0.9.9
+		BASEMODE=""
+		if [ ! -f /tmp/videomode -a ! -f /etc/videomode ];then
+	
+			[ "`dmidecode -s bios-version | grep '^CM91510'`" != "" ] && echo 'timing: 800x480@60' >> /tmp/ddcprobe.txt
+			DMIDECODE="`dmidecode`"
+			#recognise EeePC Asus laptop...
+			[ "`echo "$DMIDECODE" | grep 'Product Name: 701'`" != "" ] && [ "`echo "$DMIDECODE" | grep 'Serial Number: EeePC'`" != "" ] && echo 'timing: 800x480@60' >> /tmp/ddcprobe.txt
+	
+			echo -e '\n'$(gettext 'If initialization freezes here, press ctrl-c and type "xorgwizard",\nselect "Xorg", choose monitor type and choose video mode.')''   #v3.99
+			grep '^oem:' /tmp/ddcprobe.txt > /tmp/ddcprobeoem.txt   #v3.99 current adapter signature
+	
+			#get too many weird resolutions, maybe better just only allow these...
+			#want widescreen/non-vesa resolutions only...
+			VESAMODES="`Xvesa -listmodes 2>&1 | grep '^0x' | tr ':' ' ' | tr -s ' ' | cut -f 1,2 -d ' '`"
+			rm /tmp/ddcprobeoem.txt  #v3.99 didn't hang in Xvesa, so delete signature
+			#100608 jemimah: added 1366x768...
+			MONCHOICES="`grep -F 'timing:' /tmp/ddcprobe.txt | grep -E -v 'Apple|8514A|Mac II|\(XGA2\)' | grep -E ' 800x480@| 1024x600@| 1280x768@| 1280x800@| 1280x1024@| 1360x768@| 1366x768@| 1400x1050@| 1440x900@| 1600x1200@| 1680x1050@| 1920x1080@| 1920x1200@' | cut -f 2 -d ' ' | sort -u`"
+	
+			if [ "$MONCHOICES" != "" ];then
+			MONCUTXY="`echo "$MONCHOICES" | cut -f 1 -d '@' | tr '\n' ' '`"
+	
+			#v2.21 code to handle widescreen with intel video chips...
+				if [ ! -f /etc/resolutionfix ];then
+					if grep -F 'oem:' /tmp/ddcprobe.txt | grep -F -q 'Intel' ;then
+						MISSINGXY=""
+						for ONECUTXY in $MONCUTXY #ex: each field 1024x768
+						do
+							OPATTERN=" ${ONECUTXY}x"
+							[ "`echo "$VESAMODES" | grep "$ONECUTXY"`" = "" ] && MISSINGXY="$ONECUTXY"
+						done
+						if [ "$MISSINGXY" != "" ];then
+							MYXRES="`echo -n "$MISSINGXY" | cut -f 1 -d 'x'`" 
+							MYYRES="`echo -n "$MISSINGXY" | cut -f 2 -d 'x'`" 
+							915resolution 38 $MYXRES $MYYRES
+							#...replaces mode 38 (1024x768).
+							#create something for /etc/profile to execute at bootup...
+							echo "915resolution 38 $MYXRES $MYYRES" > /etc/resolutionfix
+							VESAMODES="`Xvesa -listmodes 2>&1 | grep '^0x' | tr ':' ' ' | tr -s ' ' | cut -f 1,2 -d ' '`"
+							PPATTERN=" ${MYXRES}x${MYYRES}x"
+							#BASEMOD is res that we are going to start X with...
+							BASEMODE="`echo "$VESAMODES" | grep "$PPATTERN" | grep -E 'x16$|x24$|x32$' | head -n 1`"
+						fi
 					fi
 				fi
-			fi
-  
-			#find out if there is just one native mode...
-			if [ "$BASEMODE" = "" ];then
-				if [ "`echo "$MONCUTXY" | wc -l`" = "1" ];then
-					QPATTERN=" ${MONCUTXY}x"
-					BASEMODE="`echo "$VESAMODES" | grep "$QPATTERN" | grep -E 'x16$|x24$|x32$' | head -n 1`"
+	  
+				#find out if there is just one native mode...
+				if [ "$BASEMODE" = "" ];then
+					if [ "`echo "$MONCUTXY" | wc -l`" = "1" ];then
+						QPATTERN=" ${MONCUTXY}x"
+						BASEMODE="`echo "$VESAMODES" | grep "$QPATTERN" | grep -E 'x16$|x24$|x32$' | head -n 1`"
+					fi
+				fi
+	    
+				if [ "$BASEMODE" != "" ];then
+					echo "$BASEMODE" > /etc/videomode #no need for wizard after startup!
+					rm -f /tmp/videomode 2>/dev/null #w460 make sure can exit from X.
 				fi
 			fi
-    
-			if [ "$BASEMODE" != "" ];then
-				echo "$BASEMODE" > /etc/videomode #no need for wizard after startup!
-				rm -f /tmp/videomode 2>/dev/null #w460 make sure can exit from X.
+	
+			if [ "$BASEMODE" = "" ];then
+				BASEMODE="`echo "$VESAMODES" | grep ' 800x600x16' | head -n 1`"
+				if [ "$BASEMODE" != "" ];then
+					echo "$BASEMODE" > /tmp/videomode
+				else
+					echo -n "0x0111 640x480x16" > /tmp/videomode
+				#...desparate, not a practical mode.
+				fi
 			fi
+	
+			rm -f /tmp/Xflag #precaution.
+			#...if /tmp/videomode exists, video-wizard is started in ~/.xinitrc
+			#...note, if /etc/videomode exists instead, normal X startup.
+	  
 		fi
-
-		if [ "$BASEMODE" = "" ];then
-			BASEMODE="`echo "$VESAMODES" | grep ' 800x600x16' | head -n 1`"
-			if [ "$BASEMODE" != "" ];then
-				echo "$BASEMODE" > /tmp/videomode
-			else
-				echo -n "0x0111 640x480x16" > /tmp/videomode
-			#...desparate, not a practical mode.
-			fi
-		fi
-
-		rm -f /tmp/Xflag #precaution.
-		#...if /tmp/videomode exists, video-wizard is started in ~/.xinitrc
-		#...note, if /etc/videomode exists instead, normal X startup.
-  
+	 
 	fi
- 
-fi
+fi # end big if
 
-#v411 restored after removal in v407...
-#update xorg.conf if mouse has changed...
+#update xorg.conf if mouse has changed... #NEEDS FIXING
 MOUSEDEV="`cat /etc/mousedevice`" #autodetected in rc.sysinit
 OLDMOUSEDEV="`cat /etc/oldmousedevice 2>/dev/null`" #set in rc.sysinit. 130725
 if [ ! "$OLDMOUSEDEV" = "$MOUSEDEV" ];then
@@ -183,7 +187,7 @@ if [ ! -f /etc/mousebuttons ];then
 	fi
 fi
 
-#v2.11 find out if xorg video drvr exists, else use xorg vesa...
+#v2.11 find out if xorg video drvr exists, else use xorg vesa... #NEEDS FIXING
 if [ -f /usr/bin/Xorg ];then
 	if [ -f /etc/X11/xorg.conf ];then
 		#find location of video chip drivers...
@@ -205,7 +209,7 @@ fi
 
 #Puppy Xorg Video Wizard...
 if [ -f /usr/bin/Xorg ];then
-	if [ -f /etc/X11/xorg.conf ];then
+	if [ -f /etc/X11/xorg.conf ];then # auto skips this
 		if [ "`readlink /usr/bin/X`" = "Xorg" ];then
 			if [ "`which ddcprobe`" = "" ];then  #120517
 				#arm board, does not support ddcprobe (refer also /usr/sbin/xorgwizard-automatic)...
@@ -240,9 +244,7 @@ if [ -f /usr/bin/Xorg ];then
 	fi
 	if [ ! -f /etc/X11/xorg.conf ];then
 		rm -f /root/.XLOADED 2> /dev/null #not necessary, precaution.
-		if [ "$DISTRO_XORG_AUTO" = "yes" ];then #see /etc/DISTRO_SPECS.
-			echo #/usr/sbin/xorgwizard-automatic ##########################################################################################################################
-		else
+		if [ "$DISTRO_XORG_AUTO" != "yes" ];then #see /etc/DISTRO_SPECS.
 			#1st dialog offers to use Xvesa...
 			/usr/sbin/xorgwizard
 			HAVEX="`readlink /usr/bin/X`"
@@ -368,7 +370,7 @@ if [ "$KEYMAPNOW" != "$KEYMAPPREV" ];then
 				fi
 			fi
 		fi
-		currXKEYMAP="`grep '#xkeymap0' /etc/X11/xorg.conf | tr '\t' ' ' | tr -s ' ' | cut -f 4 -d '"'`" #'geany fix
+		urrXKEYMAP="`grep '#xkeymap0' /etc/X11/xorg.conf | tr '\t' ' ' | tr -s ' ' | cut -f 4 -d '"'`" #'geany fix
 		if [ "$currXKEYMAP" != "$XKEYMAP" ];then
 			skPATTERN="s%.*#xkeymap0%	Option      \"XkbLayout\" \"${XKEYMAP}\" #xkeymap0%"
 			sed -i -e "${skPATTERN}" /etc/X11/xorg.conf #100130 ################################################################################################################
@@ -412,16 +414,10 @@ case $HAVEX in
 		if [ -f /ect/X11/xorg.conf ];then
 			echo "$(gettext 'Starting X, specs in /etc/X11/xorg.conf, startup apps /etc/X11/xinitrc...')"
 		else
-			"$(gettext 'Starting X...')"
+			echo "$(gettext 'Starting X, startup apps /etc/X11/xinitrc...')"
 		fi 
 		#v2.11 G2 suggested -br for black background instead of checked...
-		#w479 ***AWFUL HACK*** running pup 218, retro k2.6.18.8, my laptop, Xorg hangs
-		#     if have '-nolisten tcp'. until find out why, this workaround...
-		if [ "$KERNELVER" = "2.6.18.8" ];then
-			/usr/bin/xinit /etc/X11/xinitrc -- -br > /tmp/xerrs.log 2>&1
-		else
-			/usr/bin/xinit /etc/X11/xinitrc -- -br -nolisten tcp > /tmp/xerrs.log 2>&1
-		fi
+		/usr/bin/xinit /etc/X11/xinitrc -- -br -nolisten tcp > /tmp/xerrs.log 2>&1
 	;;
 	*)
 		/usr/bin/xinit /etc/X11/xinitrc --  > /tmp/xerrs.log 2>&1
