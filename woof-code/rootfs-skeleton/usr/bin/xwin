@@ -63,7 +63,7 @@ if [ "$DISTRO_XORG_AUTO" = "yes" ];then # big if
 			fi
 		fi
 	fi
-fi
+
 #Repeat earlier tests in case Xserver now Xorg and to retain indentation levels.
 	if [ "$HAVEX" = "Xvesa" ];then #0.9.9
 		BASEMODE=""
