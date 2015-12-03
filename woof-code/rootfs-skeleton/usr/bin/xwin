@@ -23,6 +23,7 @@ cd ~   # Ensure current directory is root. rerwin
 #PMEDIA is a broad description of the boot media, ex "usbflash" or "idehd".
 . /etc/DISTRO_SPECS
 . /etc/rc.d/BOOTCONSTRAINED
+. /etc/rc.d/functions4puppy4
 
 KERNELVER="`uname -r`"
 
@@ -43,7 +44,7 @@ fi
 HAVEX="`readlink /usr/bin/X`"
 
 # keep this for legacy xorgwizard
-if [ "$DISTRO_XORG_AUTO" = "yes" ];then # big if
+if [ "$DISTRO_XORG_AUTO" != "yes" ];then # big if
 	if [ "$HAVEX" = "Xvesa" ];then #0.9.9
 	
 		if [ ! -f /tmp/videomode -a ! -f /etc/videomode ];then #v2.21
@@ -144,31 +145,33 @@ if [ "$DISTRO_XORG_AUTO" = "yes" ];then # big if
 	fi
 fi # end big if
 
-#update xorg.conf if mouse has changed... #NEEDS FIXING
-MOUSEDEV="`cat /etc/mousedevice`" #autodetected in rc.sysinit
-OLDMOUSEDEV="`cat /etc/oldmousedevice 2>/dev/null`" #set in rc.sysinit. 130725
-if [ ! "$OLDMOUSEDEV" = "$MOUSEDEV" ];then
-	if [ ! "$OLDMOUSEDEV" = "nothing" ];then #"nothing" on first boot.
-		if [ -f /etc/X11/xorg.conf ];then
-			case `cat /etc/mousedevice | cut -c 1-4` in
-				"inpu") #"input/mice", usb
-					cat /etc/X11/xorg.conf | sed -e 's/\W\+Option\W\+"Protocol"\W\+"\(\(\w\+\/\w\+\)\|\(\w\+\)\)\W\+#mouse0protocol/	Option	    "Protocol" "IMPS\/2" #mouse0protocol/g' > /tmp/xorg.conf.tmp2
-					;;
-				"ttyS") #ttyS0,1,2,3, serial
-					cat /etc/X11/xorg.conf | sed -e 's/\W\+Option\W\+"Protocol"\W\+"\(\(\w\+\/\w\+\)\|\(\w\+\)\)\W\+#mouse0protocol/	Option	    "Protocol" "Microsoft" #mouse0protocol/g' > /tmp/xorg.conf.tmp2
-					;;
-				*)
-					cat /etc/X11/xorg.conf | sed -e 's/\W\+Option\W\+"Protocol"\W\+"\(\(\w\+\/\w\+\)\|\(\w\+\)\)\W\+#mouse0protocol/	Option	    "Protocol" "auto" #mouse0protocol/g' > /tmp/xorg.conf.tmp2
-					;;
-			esac
-			sync
-			cp -f /tmp/xorg.conf.tmp2 /etc/X11/xorg.conf
-			sync
-			rm -f /tmp/xorg.conf.tmp2
+#update xorg.conf if mouse has changed... #skip it if auto
+if [ "$DISTRO_XORG_AUTO" != "yes" ];then
+	MOUSEDEV="`cat /etc/mousedevice`" #autodetected in rc.sysinit
+	OLDMOUSEDEV="`cat /etc/oldmousedevice 2>/dev/null`" #set in rc.sysinit. 130725
+	if [ ! "$OLDMOUSEDEV" = "$MOUSEDEV" ];then
+		if [ ! "$OLDMOUSEDEV" = "nothing" ];then #"nothing" on first boot.
+			if [ -f /etc/X11/xorg.conf ];then
+				case `cat /etc/mousedevice | cut -c 1-4` in
+					"inpu") #"input/mice", usb
+						cat /etc/X11/xorg.conf | sed -e 's/\W\+Option\W\+"Protocol"\W\+"\(\(\w\+\/\w\+\)\|\(\w\+\)\)\W\+#mouse0protocol/	Option	    "Protocol" "IMPS\/2" #mouse0protocol/g' > /tmp/xorg.conf.tmp2
+						;;
+					"ttyS") #ttyS0,1,2,3, serial
+						cat /etc/X11/xorg.conf | sed -e 's/\W\+Option\W\+"Protocol"\W\+"\(\(\w\+\/\w\+\)\|\(\w\+\)\)\W\+#mouse0protocol/	Option	    "Protocol" "Microsoft" #mouse0protocol/g' > /tmp/xorg.conf.tmp2
+						;;
+					*)
+						cat /etc/X11/xorg.conf | sed -e 's/\W\+Option\W\+"Protocol"\W\+"\(\(\w\+\/\w\+\)\|\(\w\+\)\)\W\+#mouse0protocol/	Option	    "Protocol" "auto" #mouse0protocol/g' > /tmp/xorg.conf.tmp2
+						;;
+				esac
+				sync
+				cp -f /tmp/xorg.conf.tmp2 /etc/X11/xorg.conf
+				sync
+				rm -f /tmp/xorg.conf.tmp2
+			fi
 		fi
+		OLDMOUSEDEV="$MOUSEDEV" #v411 old is now current mouse
+		echo -n "$OLDMOUSEDEV" > /etc/oldmousedevice #v411
 	fi
-	OLDMOUSEDEV="$MOUSEDEV" #v411 old is now current mouse
-	echo -n "$OLDMOUSEDEV" > /etc/oldmousedevice #v411
 fi
 
 #v408 k2.6.25.16 has serial driver as a module... 110721 o/p to null...
@@ -370,10 +373,16 @@ if [ "$KEYMAPNOW" != "$KEYMAPPREV" ];then
 				fi
 			fi
 		fi
-		urrXKEYMAP="`grep '#xkeymap0' /etc/X11/xorg.conf | tr '\t' ' ' | tr -s ' ' | cut -f 4 -d '"'`" #'geany fix
-		if [ "$currXKEYMAP" != "$XKEYMAP" ];then
-			skPATTERN="s%.*#xkeymap0%	Option      \"XkbLayout\" \"${XKEYMAP}\" #xkeymap0%"
-			sed -i -e "${skPATTERN}" /etc/X11/xorg.conf #100130 ################################################################################################################
+		if [ "$DISTRO_XORG_AUTO" = "yes" ];then
+			if [ "${XKEYMAP}" != 'us' ];then
+				mk_keyboard_conf ${XKEYMAP}
+			fi
+		else
+			urrXKEYMAP="`grep '#xkeymap0' /etc/X11/xorg.conf | tr '\t' ' ' | tr -s ' ' | cut -f 4 -d '"'`" #'geany fix
+			if [ "$currXKEYMAP" != "$XKEYMAP" ];then
+				skPATTERN="s%.*#xkeymap0%	Option      \"XkbLayout\" \"${XKEYMAP}\" #xkeymap0%"
+				sed -i -e "${skPATTERN}" /etc/X11/xorg.conf #100130
+			fi
 		fi
 	fi
 fi
