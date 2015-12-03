@@ -178,7 +178,7 @@ mk_keyboard_conf () {
 Section "InputClass"
 	Identifier "keyboard-all"
 	MatchIsKeyboard "on"
-	MatchDevicePatch "/dev/input/event*"
+	MatchDevicePath "/dev/input/event*"
 	Driver "evdev"
 	Option "XkbLayout" "$LAYOUT"
 $VARIANT
